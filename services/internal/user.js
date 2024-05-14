@@ -1,4 +1,5 @@
 const User = require("../../models/User");
+const RefreshToken = require("../../models/RefreshToken");
 const bcrypt = require("bcrypt");
 const { CustomAPIError } = require("../../errors/custom-error");
 const { SALT_ROUND } = require("../../config/constants");
@@ -13,7 +14,7 @@ const createUser = async (data) => {
 };
 
 const generateAccessToken = async (user) => {
-  const accessToken = jwt.sign(
+  const accessToken = await jwt.sign(
     { userId: user?._id, role: user?.role },
     process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: config?.jwtAccessTokenExpiresIn }
@@ -42,6 +43,8 @@ const handleLogin = async (data) => {
 
   const accessToken = await generateAccessToken(user);
   const refreshToken = await generateRefreshToken(user);
+
+  await new RefreshToken({ userId: user._id, token: refreshToken }).save();
 
   return { user, accessToken, refreshToken };
 };
@@ -88,6 +91,48 @@ const handlePasswordChange = async (data) => {
   );
 };
 
+const handleRefreshToken = async (refreshToken) => {
+  let accessToken = "";
+  try {
+    const user = await jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const storedToken = await RefreshToken.findOne({ token: refreshToken });
+    if (!storedToken) {
+      throw new Error("Invalid token !!");
+    }
+
+    const userData = await getUser({ _id: user?.userId });
+    accessToken = await generateAccessToken(userData);
+    return accessToken;
+  } catch (error) {
+    // console.log("error catched", error);
+    throw new CustomAPIError("Invalid Token/Exipired", 400);
+  }
+};
+
+const handleLogout = async (refreshToken) => {
+  try {
+    const user = await jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    // To remove the refresh token from the database
+    await RefreshToken.findOneAndDelete({
+      userId: user?.userId,
+      token: refreshToken,
+    });
+
+    return user;
+  } catch (error) {
+    console.log("error catched", error);
+    throw new CustomAPIError("Invalid Token/Exipired", 400);
+  }
+};
+
 module.exports = {
   createUser,
   handleLogin,
@@ -95,4 +140,6 @@ module.exports = {
   updateUser,
   handlePasswordChange,
   getUserList,
+  handleRefreshToken,
+  handleLogout,
 };

@@ -1,8 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { signUp, login } = require("../controllers/auth");
+const {
+  signUp,
+  login,
+  refreshTokenToGenerateAccessToken,
+  logOut,
+} = require("../controllers/auth");
 const asyncWrapper = require("../middleware/async");
-const { body } = require("express-validator");
 const { signupSchema, loginSchema } = require("../validators/auth");
 const { handleValidationErrors } = require("../validators");
 
@@ -14,5 +18,9 @@ router.post(
 );
 
 router.post("/login", loginSchema, handleValidationErrors, asyncWrapper(login));
+
+router.post("/token/refresh", asyncWrapper(refreshTokenToGenerateAccessToken));
+
+router.post("/logout", asyncWrapper(logOut));
 
 module.exports = router;

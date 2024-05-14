@@ -3,6 +3,8 @@ const {
   createUser,
   handleLogin,
   getUser,
+  handleRefreshToken,
+  handleLogout,
 } = require("../services/internal/user");
 
 const signUp = async (req, res) => {
@@ -22,13 +24,35 @@ const login = async (req, res, next) => {
   });
 
   // To set token in the response header
-  res.setHeader("Accesss-Token", accessToken);
-  res.setHeader("Refresh-Token", refreshToken);
+  res.setHeader("accesss-token", accessToken);
+  res.setHeader("refresh-token", refreshToken);
 
   res.json({ message: "Login success", data: user });
 };
 
+const refreshTokenToGenerateAccessToken = async (req, res) => {
+  const token = req.headers["refresh-token"];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const accessToken = await handleRefreshToken(token);
+  res.setHeader("accesss-token", accessToken);
+  return res.status(200).json({ message: "Success Access token generated !!" });
+};
+
+const logOut = async (req, res) => {
+  const token = req.headers["refresh-token"];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  await handleLogout(token);
+  return res.status(200).json({ message: "Logout Success !!" });
+};
 module.exports = {
   signUp,
   login,
+  refreshTokenToGenerateAccessToken,
+  logOut,
 };
